@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>甩锅分析器 — 帮你不背锅</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Phase 2: 报告导出依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <!-- Phase 3: 图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Top Nav Bar -->
+        <div class="top-nav">
+            <div class="top-nav-actions">
+                <button class="nav-btn" onclick="toggleHistoryPanel(true)">📚 历史记录</button>
+                <button class="nav-btn" onclick="showPhrasesPanel()">📝 话术库</button>
+                <button class="nav-btn" onclick="showDashboard()">📊 看板</button>
+                <button class="nav-btn nav-btn-upgrade" onclick="showPricingModal()">💎 套餐</button>
+            </div>
+            <div class="top-nav-auth" id="authArea">
+                <span class="plan-badge" id="planBadge" style="display:none;"></span>
+                <button class="auth-btn auth-btn-login" onclick="showAuthModal('login')">登录</button>
+                <button class="auth-btn auth-btn-register" onclick="showAuthModal('register')">注册</button>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <div class="header">
+            <h1>🎯 AI 甩锅分析器</h1>
+            <p class="subtitle">粘贴聊天记录 → AI 分析责任归属 → 生成有理有据的优雅反击</p>
+            <div class="badge-row">
+                <span class="badge">⚡ 智能解析</span>
+                <span class="badge">📊 量化归责</span>
+                <span class="badge">🗡️ 多风格话术</span>
+                <span class="badge">🤖 AI 大模型加持</span>
+                <span class="badge">🛡️ 隐私安全</span>
+            </div>
+
+        </div>
+
+        <!-- Input -->
+        <div class="glass-card input-section">
+            <div class="section-label">
+                <span>📋</span> 粘贴聊天记录 / 邮件 / 会议纪要
+            </div>
+            <textarea id="chatInput"
+                placeholder="支持多种格式，例如：&#10;&#10;[2026-06-01 10:00] 张三：这个需求下周一要上线&#10;[2026-06-01 10:05] 我：好的，确认一下设计稿定了吗？&#10;&#10;也可以直接粘贴钉钉/飞书/微信聊天记录、邮件内容等"
+                oninput="updateCharCount()"></textarea>
+            <div class="char-counter"><button class="clear-btn" onclick="clearInput()">清空</button><span id="charCount">0</span> 字</div>
+            <div class="quick-actions">
+                <span class="sample-btn" onclick="loadSample('dev')">💻 研发协作</span>
+                <span class="sample-btn" onclick="loadSample('design')">🎨 设计对接</span>
+                <span class="sample-btn" onclick="loadSample('meeting')">📅 会议纪要</span>
+                <span class="sample-btn" onclick="loadSample('ops')">🔧 运维事故</span>
+                <span class="sample-btn" onclick="loadSample('vendor')">🤝 乙方扯皮</span>
+                <span class="sample-btn" onclick="loadSample('email')">📧 邮件问责</span>
+                <span class="sample-btn" onclick="loadSample('crossteam')">🔀 跨团队协作</span>
+                <button class="ocr-btn" id="btnOCR"><span>📷</span> 截图识别</button>
+            </div>
+            <input type="file" id="ocrFileInput" accept="image/*" style="display:none;" />
+        </div>
+
+        <!-- Config -->
+        <div class="config-row">
+            <div class="config-item glass-card" style="padding: 16px;">
+                <label>🎭 你的身份</label>
+                <select id="roleSelect">
+                    <option value="auto">自动识别</option>
+                    <option value="frontend">前端开发</option>
+                    <option value="backend">后端开发</option>
+                    <option value="pm">产品经理</option>
+                    <option value="design">设计师</option>
+                    <option value="qa">测试/QA</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+            <div class="config-item glass-card" style="padding: 14px 16px;">
+                <label>🗡️ 反击风格偏好</label>
+                <select id="toneSelect">
+                    <option value="all">全部生成</option>
+                    <option value="professional">🤝 职场高情商</option>
+                    <option value="savage">🔥 阴阳怪气</option>
+                    <option value="diplomatic">🕊️ 对事不对人</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Analyze buttons -->
+        <div class="analyze-buttons">
+            <button class="btn-analyze btn-local" id="btnAnalyze" onclick="analyze()">
+                <span>🔍</span> 本地快速分析
+            </button>
+            <button class="btn-analyze btn-ai" id="btnAnalyzeAI" onclick="analyzeAI()">
+                <span>🤖</span> AI 深度分析
+            </button>
+        </div>
+        <p class="analyze-hint">💡 本地分析：关键词匹配，瞬间出结果、零流量消耗　|　AI 分析：通义千问大模型深度语义理解，更智能更准确</p>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="loading-dots">
+                <span></span><span></span><span></span>
+            </div>
+            <p class="step-text" id="loadingText">正在解析对话时间线...</p>
+            <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+        </div>
+
+        <!-- Results -->
+        <div class="result-section" id="resultSection">
+            <!-- Stats overview -->
+            <div class="stats-bar glass-card" id="statsBar"></div>
+
+            <!-- Verdict -->
+            <div class="glass-card result-card verdict-card">
+                <div class="card-accent"></div>
+                <div class="card-header">
+                    <h3>🎯 锅归属判定</h3>
+                </div>
+                <div id="verdictContent"></div>
+            </div>
+
+            <!-- Key Messages -->
+            <div class="glass-card result-card key-messages-card">
+                <div class="card-accent"></div>
+                <div class="card-header">
+                    <h3>🔑 关键甩锅消息</h3>
+                    <span class="badge" style="color: #f43f5e; border-color: rgba(244,63,94,0.3);">最致命证据</span>
+                </div>
+                <div id="keyMessagesContent"></div>
+            </div>
+
+            <!-- Evidence -->
+            <div class="glass-card result-card evidence-card">
+                <div class="card-accent"></div>
+                <div class="card-header">
+                    <h3>📋 证据链时间线</h3>
+                </div>
+                <div id="evidenceContent"></div>
+            </div>
+
+            <!-- Counterattack -->
+            <div class="glass-card result-card counterattack-card">
+                <div class="card-accent"></div>
+                <div class="card-header">
+                    <h3>🗡️ 优雅反击话术</h3>
+                </div>
+                <div id="counterattackContent"></div>
+            </div>
+
+            <!-- Advice -->
+            <div class="glass-card result-card advice-card">
+                <div class="card-accent"></div>
+                <div class="card-header">
+                    <h3>💡 改进建议</h3>
+                </div>
+                <div id="adviceContent"></div>
+            </div>
+
+            <!-- Re-analyze -->
+            <div class="export-buttons">
+                <button class="export-btn" id="btnExportImage" onclick="exportAsImage()">📸 导出图片</button>
+                <button class="export-btn" id="btnExportPDF" onclick="exportAsPDF()">📄 导出 PDF</button>
+            </div>
+            <button class="btn-analyze" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="margin-top: 8px;">
+                <span>🔄</span> 重新分析
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p class="slogan">🎯 不是教你甩锅，是帮你不背锅。</p>
+            <p style="margin-top: 6px;">本地分析在浏览器完成，AI 分析使用阿里云百炼大模型接口</p>
+        </div>
+    </div>
+
+    <!-- History Panel -->
+    <div class="history-overlay" id="historyOverlay" onclick="toggleHistoryPanel(false)"></div>
+    <div class="history-panel" id="historyPanel">
+        <div class="history-panel-header">
+            <h3>📚 分析历史</h3>
+            <button class="history-panel-close" onclick="toggleHistoryPanel(false)">&times;</button>
+        </div>
+        <div class="history-list" id="historyList"></div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div class="auth-modal-overlay" id="authModal">
+        <div class="auth-modal glass-card">
+            <button class="auth-modal-close" onclick="hideAuthModal()">&times;</button>
+            <h2 class="auth-modal-title">登录</h2>
+            <div class="auth-form">
+                <div class="auth-field">
+                    <label>邮箱</label>
+                    <input type="email" id="authEmail" placeholder="your@email.com" />
+                </div>
+                <div class="auth-field nickname-group">
+                    <label>昵称</label>
+                    <input type="text" id="authNickname" placeholder="你的昵称" maxlength="20" />
+                </div>
+                <div class="auth-field">
+                    <label>密码</label>
+                    <input type="password" id="authPassword" placeholder="至少6位" />
+                </div>
+                <p class="auth-error"></p>
+                <button class="auth-submit-btn" data-mode="login" onclick="handleAuthSubmit()">登录</button>
+                <p class="auth-toggle-text">还没有账号？<a href="#" onclick="showAuthModal('register'); return false;">立即注册</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
