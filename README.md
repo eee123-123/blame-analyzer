@@ -31,7 +31,17 @@ npm install
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，根据 `.env.example` 中的说明填入必要的配置项（如 DashScope API Key 等）。
+编辑 `.env` 文件，填入以下配置：
+
+| 变量 | 说明 | 必填 |
+|------|------|------|
+| `DASHSCOPE_API_KEY` | 阿里云百炼 API Key（[申请地址](https://dashscope.console.aliyun.com/)） | ✅ |
+| `JWT_SECRET` | JWT 签名密钥，建议替换为随机字符串 | ✅ |
+| `PORT` | 后端端口，默认 3000 | |
+| `AI_MODEL` | AI 模型，默认 qwen-plus | |
+| `FREE_DAILY_AI_LIMIT` | 免费用户每日 AI 调用次数，默认 3 | |
+
+> 💡 数据库无需手动配置，首次启动时会自动创建 SQLite 数据库文件。
 
 ### 4. 启动后端服务
 
